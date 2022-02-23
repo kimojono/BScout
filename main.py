@@ -67,6 +67,7 @@ class KeysCounter(Counter):
 
 def init_root_screen(filename: str):
     global counters_list, add_or_subtract
+    counters_per_column = 22
     '''
     background_image = ImageTk.PhotoImage(file="background_image.jpg")
     background_label = Label(root,image=background_image)
@@ -77,9 +78,9 @@ def init_root_screen(filename: str):
     add_or_subtract = False
     for i in range(len(CONFIG["player counters names list"])):
         counters_list.append(
-            KeysCounter(root, KEYCODES_LIST[i], int(i - int(i / 12) * 12) + 3, int(i / 12) * 3,
+            KeysCounter(root, KEYCODES_LIST[i], int(i - int(i / counters_per_column) * counters_per_column) + 3, int(i / counters_per_column) * 3,
                         CONFIG["player counters names list"][i]))
-    for i in range(int(len(counters_list) / 14) + 1):
+    for i in range(int((len(counters_list)-1) / counters_per_column) + 1):
         Label(root, text="Key", font=("Calibri Light", 14), bg='lightblue1', fg="black", bd=3) \
             .grid(row=2, column=i * 3)
         Label(root, text="Content", font=("Calibri Light", 14), bg='lightblue1', fg="black", bd=3) \
@@ -87,16 +88,16 @@ def init_root_screen(filename: str):
         Label(root, text="Count", font=("Calibri Light", 14), bg='lightblue1', fg="black", bd=3) \
             .grid(row=2, column=i * 3 + 2)
     Label(root, text=filename, font=("Calibri Light", 20), bg='lightblue1', padx=30, bd=3) \
-        .grid(row=0, column=0, columnspan=(int(len(counters_list) / 14) + 1) * 3)
+        .grid(row=0, column=0, columnspan=(int(len(counters_list) / counters_per_column) + 1) * 3)
     Label(root, text="Press '-' To Subtract", font=("Calibri Light", 14), bg='lightblue1', padx=30, bd=3) \
-        .grid(row=1, column=0, columnspan=(int(len(counters_list) / 14) + 1) * 3)
-    Label(root, text=" ", bg="lightblue1").grid(row=15, column=0)
+        .grid(row=1, column=0, columnspan=(int(len(counters_list) / counters_per_column) + 1) * 3)
+    Label(root, text=" ", bg="lightblue1").grid(row=counters_per_column+3, column=0)
     export_button = Button(root, text="Export", font=("Calibri Light", 14), bg='snow', padx=30, bd=3,
                            command=export_to_excel)
     import_button = Button(root, text="Import", font=("Calibri Light", 14), bg='snow', padx=30, bd=3,
                            command=import_from_excel)
-    export_button.grid(row=17, column=int(len(counters_list) / 13) * 3, sticky=E, columnspan=3)
-    import_button.grid(row=17, column=0, sticky=W, columnspan=2)
+    export_button.grid(row=counters_per_column+5, column=int((len(counters_list)-1) / counters_per_column) * 3, sticky=E, columnspan=3)
+    import_button.grid(row=counters_per_column+5, column=0, sticky=W, columnspan=2)
     root.resizable(False, False)
     root.eval('tk::PlaceWindow . center')
 
