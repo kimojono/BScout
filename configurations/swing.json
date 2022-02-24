@@ -1,0 +1,19 @@
+{
+"SAVE LOCATION" : "c:/basketballAnalysis",
+"CONFIGURATIONS LOCATION" : "c:/basketballAnalysis/configurations",
+"player counters names list" : [
+  "0 pts swing",
+  "1 pts swing",
+  "2 pts swing",
+  "3 pts swing",
+  "4 pts swing",
+  "5 pts swing",
+  "-1 pts swing",
+  "-2 pts swing",
+  "-3 pts swing",
+  "4 pts swing",
+  "5 pts swing"
+],
+"general counters names list" : [],
+  "ADVANCED STATS":[]
+}
