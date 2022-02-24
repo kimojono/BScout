@@ -1,26 +1,29 @@
 import tkinter.filedialog
 from tkinter import *
-
+import re
 
 import os
 import json
 import openpyxl
 from openpyxl.utils.cell import get_column_letter
 
+MATH_OPERATORS = ['+','-','*','/','(',')','^','=']
 KEYCODES_LIST = [49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 81, 87, 69, 82, 84, 89, 85, 73, 79, 80, 65,
                  83, 68, 70, 71, 72, 74, 75, 76, 90, 88, 67, 86, 66, 78, 77]
 BAD_FILE_NAME_CHARS = ['\\', '/', '*', ':', '"', '?', '|', '<', '>']
 global root, counters_list, box_score, add_or_subtract, CONFIG
-
+HEADER_FONT = ("Calibri Light", 14)
+TEXT_FONT = ("Calibri Light", 10)
 
 def get_formula(formula_string: str, table_index: str, player_row: int = 2):
     formula = formula_string.split("=")
     name = formula[0]
     formula = "=" + formula[1]
-    for counter in CONFIG["player counters names list"]:
-        formula = formula.replace(counter, f'HLOOKUP("{counter}",{table_index},{player_row},FALSE)')
-    for counter in CONFIG["general counters names list"]:
-        formula = formula.replace(counter, f'HLOOKUP("{counter}",{table_index},{player_row},FALSE)')
+    for counter in CONFIG["player counters names list"] + CONFIG["general counters names list"]:
+        counter_indexes_list = [m.start() for m in re.finditer(counter, formula)]
+        for substring_index in counter_indexes_list[::-1]:
+            if formula[substring_index-1] in MATH_OPERATORS and formula[substring_index+len(counter)] in MATH_OPERATORS:
+                formula = formula[:substring_index] + f'HLOOKUP("{counter}",{table_index},{player_row},FALSE)' + formula[substring_index+len(counter):]
     return [name, formula]
 
 
@@ -54,11 +57,11 @@ class KeysCounter(Counter):
         self.display()
 
     def display(self):
-        Label(self.window, text=f"{chr(self.key).lower()}", font=("Calibri Light", 14), pady=3, bg="lightblue1") \
+        Label(self.window, text=f"{chr(self.key).lower()}", font=TEXT_FONT, pady=1, bg="lightblue1") \
             .grid(row=self.row, column=self.column)
-        Label(self.window, text=f"{self.name}", font=("Calibri Light", 14), pady=3, bg="lightblue1") \
+        Label(self.window, text=f"{self.name}", font=TEXT_FONT, pady=1, bg="lightblue1") \
             .grid(row=self.row, column=self.column + 1)
-        self.label = Label(self.window, text=f"{self.count}", font=("Calibri Light", 14), pady=3, bg="lightblue1")
+        self.label = Label(self.window, text=f"{self.count}", font=TEXT_FONT, pady=1, bg="lightblue1")
         self.label.grid(row=self.row, column=self.column + 2)
 
 
@@ -78,20 +81,19 @@ def init_root_screen(filename: str):
             KeysCounter(root, KEYCODES_LIST[i], int(i - int(i / counters_per_column) * counters_per_column) + 3, int(i / counters_per_column) * 3,
                         CONFIG["player counters names list"][i]))
     for i in range(int((len(counters_list)-1) / counters_per_column) + 1):
-        Label(root, text="Key", font=("Calibri Light", 14), bg='lightblue1', fg="black", bd=3) \
+        Label(root, text="Key", font=TEXT_FONT, bg='lightblue1', fg="black", bd=3) \
             .grid(row=2, column=i * 3)
-        Label(root, text="Content", font=("Calibri Light", 14), bg='lightblue1', fg="black", bd=3) \
+        Label(root, text="Content", font=TEXT_FONT, bg='lightblue1', fg="black", bd=3) \
             .grid(row=2, column=i * 3 + 1)
-        Label(root, text="Count", font=("Calibri Light", 14), bg='lightblue1', fg="black", bd=3) \
+        Label(root, text="Count", font=TEXT_FONT, bg='lightblue1', fg="black", bd=3) \
             .grid(row=2, column=i * 3 + 2)
-    Label(root, text=filename, font=("Calibri Light", 20), bg='lightblue1', padx=30, bd=3) \
+    Label(root, text=filename, font=HEADER_FONT, bg='lightblue1', padx=30, bd=3) \
         .grid(row=0, column=0, columnspan=(int(len(counters_list) / counters_per_column) + 1) * 3)
-    Label(root, text="Press '-' To Subtract", font=("Calibri Light", 14), bg='lightblue1', padx=30, bd=3) \
+    Label(root, text="Press '-' To Subtract", font=TEXT_FONT, bg='lightblue1', padx=30, bd=3) \
         .grid(row=1, column=0, columnspan=(int(len(counters_list) / counters_per_column) + 1) * 3)
-    Label(root, text=" ", bg="lightblue1").grid(row=counters_per_column+3, column=0)
-    export_button = Button(root, text="Export", font=("Calibri Light", 14), bg='snow', padx=30, bd=3,
+    export_button = Button(root, text="Export", font=TEXT_FONT, bg='snow', padx=30, bd=3,
                            command=export_to_excel)
-    import_button = Button(root, text="Import", font=("Calibri Light", 14), bg='snow', padx=30, bd=3,
+    import_button = Button(root, text="Import", font=TEXT_FONT, bg='snow', padx=30, bd=3,
                            command=import_from_excel)
     export_button.grid(row=counters_per_column+5, column=int((len(counters_list)-1) / counters_per_column) * 3, sticky=E, columnspan=3)
     import_button.grid(row=counters_per_column+5, column=0, sticky=W, columnspan=2)
@@ -143,14 +145,14 @@ def export_to_excel():
     export_window = Toplevel(root)
     export_window.resizable(False, False)
     export_window.title = "name the file"
-    Label(export_window, text="file name:", font=("Calibri Light", 14)).grid(row=0, column=0, columnspan=2)
+    Label(export_window, text="file name:", font=TEXT_FONT).grid(row=0, column=0, columnspan=2)
     file_name_entry = Entry(export_window, width=35, borderwidth=5)
     file_name_entry.grid(row=0, column=2, columnspan=3)
     file_name_entry.focus()
-    Label(export_window, text="player name:", font=("Calibri Light", 12)).grid(row=1, column=0, columnspan=2)
+    Label(export_window, text="player name:", font=TEXT_FONT).grid(row=1, column=0, columnspan=2)
     player_name_entry = Entry(export_window, width=20, borderwidth=3)
     player_name_entry.grid(row=1, column=2, columnspan=2)
-    Label(export_window, text="", font=("Calibri Light", 8)).grid(row=2, column=0)
+    Label(export_window, text="", font=TEXT_FONT).grid(row=2, column=0)
     box_score = []
     for i in range(len(CONFIG["general counters names list"])):
         box_score.append(
@@ -159,7 +161,7 @@ def export_to_excel():
         box_score[i].entry.insert(-1, "0")
         Label(export_window, text=f'{CONFIG["general counters names list"][i]}:', font=("Calibri Light", 12)) \
             .grid(row=i % 16 + 3, column=+int(i / 16) * 2)
-    Button(export_window, text="done", font=("Calibri Light", 14),
+    Button(export_window, text="done", font=TEXT_FONT,
            command=lambda: save_and_close(file_name_entry.get(), player_name_entry.get(), export_window)) \
         .grid(row=1200, column=2, columnspan=2)
     export_window.bind('<Return>',
@@ -180,12 +182,12 @@ def import_from_excel():
             data_sheet = import_results.active
             statistics_sheet = import_results.create_sheet("statistics")
             for row_index in range(1, data_sheet.max_row + 1):
-                statistics_sheet[f"A{row_index}"] = f"=Data!A{row_index}"
+                statistics_sheet[f"A{row_index}"] = f'=HLOOKUP("player name",{data_sheet.title}!{data_sheet.dimensions},{row_index},FALSE)'
             for formula_string_index in range(len(CONFIG["ADVANCED STATS"])):
                 temp_formula = ["", ""]
                 for row_index in range(2, data_sheet.max_row + 1):
                     temp_formula = get_formula(CONFIG["ADVANCED STATS"][formula_string_index],
-                                               "Data!" + data_sheet.dimensions, row_index)
+                                               f"{data_sheet.title}!{data_sheet.dimensions}",row_index)
                     statistics_sheet[f"{get_column_letter(formula_string_index + 2)}{row_index}"] = temp_formula[1]
                 statistics_sheet[f"{get_column_letter(formula_string_index + 2)}1"] = temp_formula[0]
 
@@ -197,6 +199,8 @@ def import_from_excel():
         Label(new_window, text="didn't choose a file", padx=30, pady=15).pack()
 
     Button(new_window, text="close", command=new_window.destroy).pack()
+    new_window.focus()
+    new_window.bind('<Return>', lambda event: new_window.destroy)
 
 
 def main():
@@ -209,6 +213,7 @@ def main():
         CONFIG = json.load(file)
         init_root_screen(filename.split("/")[-1].split(".")[0])
         root.bind('<Key>', key_pressed)
+        root.focus()
         root.mainloop()
 
 
