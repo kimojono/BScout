@@ -11,7 +11,7 @@ MATH_OPERATORS = ['+','-','*','/','(',')','^','=']
 KEYCODES_LIST = [49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 81, 87, 69, 82, 84, 89, 85, 73, 79, 80, 65,
                  83, 68, 70, 71, 72, 74, 75, 76, 90, 88, 67, 86, 66, 78, 77]
 BAD_FILE_NAME_CHARS = ['\\', '/', '*', ':', '"', '?', '|', '<', '>']
-global root, counters_list, box_score, add_or_subtract, CONFIG
+global root, counters_list, add_or_subtract, CONFIG, inner_counters_list
 HEADER_FONT = ("Calibri Light", 14)
 TEXT_FONT = ("Calibri Light", 10)
 
@@ -66,7 +66,7 @@ class KeysCounter(Counter):
 
 
 def init_root_screen(filename: str):
-    global counters_list, add_or_subtract
+    global counters_list, add_or_subtract, inner_counters_list
     counters_per_column = 22
     '''
     background_image = ImageTk.PhotoImage(file="background_image.jpg")
@@ -93,13 +93,21 @@ def init_root_screen(filename: str):
         .grid(row=1, column=0, columnspan=(int(len(counters_list) / counters_per_column) + 1) * 3)
     export_button = Button(root, text="Export", font=TEXT_FONT, bg='snow', padx=30, bd=3,
                            command=export_to_excel)
-    import_button = Button(root, text="Import", font=TEXT_FONT, bg='snow', padx=30, bd=3,
-                           command=import_from_excel)
+
     export_button.grid(row=counters_per_column+5, column=int((len(counters_list)-1) / counters_per_column) * 3, sticky=E, columnspan=3)
-    import_button.grid(row=counters_per_column+5, column=0, sticky=W, columnspan=2)
+
     root.resizable(False, False)
     root.eval('tk::PlaceWindow . center')
-
+    if CONFIG["MAIN CONFIG"]:
+        inner_counters_list = {}
+        for counter in CONFIG["player counters names list"]:
+            with open(f"{os.getcwd()}/configuration/{counter}.json") as file:
+                counter_config = json.load(file)
+                inner_counters_list[counter] = counter_config["player counters names list"]
+    else:
+        import_button = Button(root, text="Import", font=TEXT_FONT, bg='snow', padx=30, bd=3,
+                               command=import_from_excel)
+        import_button.grid(row=counters_per_column+5,column=0,sticky=W,columnspan=3)
 
 def key_pressed(event):
     global add_or_subtract
@@ -108,6 +116,14 @@ def key_pressed(event):
     for i in range(len(counters_list)):
         if event.keycode == KEYCODES_LIST[i]:
             counters_list[i].add_or_subtract_one(add_or_subtract)
+            if CONFIG["MAIN CONFIG"]:
+                key_pressed_new_window(counters_list[i])
+
+
+def key_pressed_new_window(counter):
+    counter_window = Toplevel(root)
+    counter_window.title = counter.name
+
 
 
 def save_and_close(file_name, player_name, window_to_destroy):
@@ -199,8 +215,6 @@ def import_from_excel():
         Label(new_window, text="didn't choose a file", padx=30, pady=15).pack()
 
     Button(new_window, text="close", command=new_window.destroy).pack()
-    new_window.focus()
-    new_window.bind('<Return>', lambda event: new_window.destroy)
 
 
 def main():
@@ -213,7 +227,6 @@ def main():
         CONFIG = json.load(file)
         init_root_screen(filename.split("/")[-1].split(".")[0])
         root.bind('<Key>', key_pressed)
-        root.focus()
         root.mainloop()
 
 
