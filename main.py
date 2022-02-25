@@ -7,13 +7,14 @@ import json
 import openpyxl
 from openpyxl.utils.cell import get_column_letter
 
-MATH_OPERATORS = ['+','-','*','/','(',')','^','=']
+MATH_OPERATORS = ['+', '-', '*', '/', '(', ')', '^', '=']
 KEYCODES_LIST = [49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 81, 87, 69, 82, 84, 89, 85, 73, 79, 80, 65,
                  83, 68, 70, 71, 72, 74, 75, 76, 90, 88, 67, 86, 66, 78, 77]
 BAD_FILE_NAME_CHARS = ['\\', '/', '*', ':', '"', '?', '|', '<', '>']
-global root, counters_list, add_or_subtract, CONFIG, inner_counters_list
+global root, counters_list, add_or_subtract, CONFIG, inner_counters_names_dict, inner_counters_dict, box_score
 HEADER_FONT = ("Calibri Light", 14)
 TEXT_FONT = ("Calibri Light", 10)
+
 
 def get_formula(formula_string: str, table_index: str, player_row: int = 2):
     formula = formula_string.split("=")
@@ -22,8 +23,10 @@ def get_formula(formula_string: str, table_index: str, player_row: int = 2):
     for counter in CONFIG["player counters names list"] + CONFIG["general counters names list"]:
         counter_indexes_list = [m.start() for m in re.finditer(counter, formula)]
         for substring_index in counter_indexes_list[::-1]:
-            if formula[substring_index-1] in MATH_OPERATORS and formula[substring_index+len(counter)] in MATH_OPERATORS:
-                formula = formula[:substring_index] + f'HLOOKUP("{counter}",{table_index},{player_row},FALSE)' + formula[substring_index+len(counter):]
+            if formula[substring_index - 1] in MATH_OPERATORS and formula[substring_index + len(counter)] in \
+                    MATH_OPERATORS:
+                formula = formula[:substring_index] + f'HLOOKUP("{counter}",{table_index},{player_row},FALSE)'\
+                          + formula[substring_index + len(counter):]
     return [name, formula]
 
 
@@ -66,7 +69,7 @@ class KeysCounter(Counter):
 
 
 def init_root_screen(filename: str):
-    global counters_list, add_or_subtract, inner_counters_list
+    global counters_list, add_or_subtract, inner_counters_names_dict, inner_counters_dict
     counters_per_column = 22
     '''
     background_image = ImageTk.PhotoImage(file="background_image.jpg")
@@ -78,9 +81,10 @@ def init_root_screen(filename: str):
     add_or_subtract = False
     for i in range(len(CONFIG["player counters names list"])):
         counters_list.append(
-            KeysCounter(root, KEYCODES_LIST[i], int(i - int(i / counters_per_column) * counters_per_column) + 3, int(i / counters_per_column) * 3,
+            KeysCounter(root, KEYCODES_LIST[i], int(i - int(i / counters_per_column) * counters_per_column) + 3,
+                        int(i / counters_per_column) * 3,
                         CONFIG["player counters names list"][i]))
-    for i in range(int((len(counters_list)-1) / counters_per_column) + 1):
+    for i in range(int((len(counters_list) - 1) / counters_per_column) + 1):
         Label(root, text="Key", font=TEXT_FONT, bg='lightblue1', fg="black", bd=3) \
             .grid(row=2, column=i * 3)
         Label(root, text="Content", font=TEXT_FONT, bg='lightblue1', fg="black", bd=3) \
@@ -94,20 +98,23 @@ def init_root_screen(filename: str):
     export_button = Button(root, text="Export", font=TEXT_FONT, bg='snow', padx=30, bd=3,
                            command=export_to_excel)
 
-    export_button.grid(row=counters_per_column+5, column=int((len(counters_list)-1) / counters_per_column) * 3, sticky=E, columnspan=3)
+    export_button.grid(row=counters_per_column + 5, column=int((len(counters_list) - 1) / counters_per_column) * 3,
+                       sticky=E, columnspan=3)
 
     root.resizable(False, False)
     root.eval('tk::PlaceWindow . center')
     if CONFIG["MAIN CONFIG"]:
-        inner_counters_list = {}
+        inner_counters_names_dict = {}
+        inner_counters_dict = {}
         for counter in CONFIG["player counters names list"]:
-            with open(f"{os.getcwd()}/configuration/{counter}.json") as file:
+            with open(f"{os.getcwd()}/configurations/{counter}.json") as file:
                 counter_config = json.load(file)
-                inner_counters_list[counter] = counter_config["player counters names list"]
+                inner_counters_names_dict[counter] = counter_config["player counters names list"]
     else:
         import_button = Button(root, text="Import", font=TEXT_FONT, bg='snow', padx=30, bd=3,
                                command=import_from_excel)
-        import_button.grid(row=counters_per_column+5,column=0,sticky=W,columnspan=3)
+        import_button.grid(row=counters_per_column + 5, column=0, sticky=W, columnspan=3)
+
 
 def key_pressed(event):
     global add_or_subtract
@@ -116,14 +123,21 @@ def key_pressed(event):
     for i in range(len(counters_list)):
         if event.keycode == KEYCODES_LIST[i]:
             counters_list[i].add_or_subtract_one(add_or_subtract)
-            if CONFIG["MAIN CONFIG"]:
+            if CONFIG["MAIN CONFIG"] and not add_or_subtract:
                 key_pressed_new_window(counters_list[i])
 
 
 def key_pressed_new_window(counter):
+    global inner_counters_dict
     counter_window = Toplevel(root)
     counter_window.title = counter.name
-
+    if counter.name in inner_counters_dict.keys():
+        a = 0  # *********************************
+    else:
+        inner_counters_dict[counter] = []
+        for c_index in range(len(inner_counters_names_dict[counter.name])):
+            inner_counters_dict[counter].append(KeysCounter(counter_window, KEYCODES_LIST[c_index], c_index, 0,
+                                                            inner_counters_names_dict[counter.name][c_index]))
 
 
 def save_and_close(file_name, player_name, window_to_destroy):
@@ -198,12 +212,13 @@ def import_from_excel():
             data_sheet = import_results.active
             statistics_sheet = import_results.create_sheet("statistics")
             for row_index in range(1, data_sheet.max_row + 1):
-                statistics_sheet[f"A{row_index}"] = f'=HLOOKUP("player name",{data_sheet.title}!{data_sheet.dimensions},{row_index},FALSE)'
+                statistics_sheet[f"A{row_index}"] = f'=HLOOKUP("player name",{data_sheet.title}!' \
+                                                    f'{data_sheet.dimensions},{row_index},FALSE)'
             for formula_string_index in range(len(CONFIG["ADVANCED STATS"])):
                 temp_formula = ["", ""]
                 for row_index in range(2, data_sheet.max_row + 1):
                     temp_formula = get_formula(CONFIG["ADVANCED STATS"][formula_string_index],
-                                               f"{data_sheet.title}!{data_sheet.dimensions}",row_index)
+                                               f"{data_sheet.title}!{data_sheet.dimensions}", row_index)
                     statistics_sheet[f"{get_column_letter(formula_string_index + 2)}{row_index}"] = temp_formula[1]
                 statistics_sheet[f"{get_column_letter(formula_string_index + 2)}1"] = temp_formula[0]
 
