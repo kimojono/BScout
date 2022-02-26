@@ -5,6 +5,9 @@ import re
 import os
 import json
 import openpyxl
+from openpyxl.styles.fills import PatternFill
+from openpyxl.formatting import Rule
+from openpyxl.styles.differential import DifferentialStyle
 from openpyxl.utils.cell import get_column_letter
 
 MATH_OPERATORS = ['+', '-', '*', '/', '(', ')', '^', '=']
@@ -178,11 +181,13 @@ def save_and_close(file_name, player_name, window_to_destroy):
     flag = True
     for counter in score_box:
         if counter.entry.get().isdecimal():
-            counter.count = counter.entry.get()
+            counter.count = int(counter.entry.get())
         else:
             flag = False
             break
     if file_name != '' and not any([c in BAD_FILE_NAME_CHARS for c in file_name]) and flag:
+        r = Rule(type="expression", dxf=DifferentialStyle(fill=PatternFill(bgColor="FFC7CE")),stopIfTrue=True)
+        r.formula=['A$2>0']
         file_full_location = rf"{CONFIG['SAVE LOCATION']}\{file_name}.xlsx"
         export_results = openpyxl.Workbook()
         main_sheet = export_results.active
@@ -192,12 +197,11 @@ def save_and_close(file_name, player_name, window_to_destroy):
         main_sheet.append(columns)
         main_sheet.append(data)
         main_table_size = main_sheet.dimensions
-        main_sheet["A4"] = "player name"
-        main_sheet["A5"] = player_name
         for formula_string_index in range(len(CONFIG["ADVANCED STATS"])):
             temp_formula = get_formula(CONFIG["ADVANCED STATS"][formula_string_index], main_table_size)
-            main_sheet[f"{get_column_letter(formula_string_index + 2)}4"] = temp_formula[0]
-            main_sheet[f"{get_column_letter(formula_string_index + 2)}5"] = temp_formula[1]
+            main_sheet[f"{get_column_letter(formula_string_index + 1)}4"] = temp_formula[0]
+            main_sheet[f"{get_column_letter(formula_string_index + 1)}5"] = temp_formula[1]
+        main_sheet.conditional_formatting.add("A2:GZ2", r)
         for attack, counters in inner_counters_dict.items():
             columns = [i.name for i in counters]
             data = [i.count for i in counters]
@@ -205,14 +209,13 @@ def save_and_close(file_name, player_name, window_to_destroy):
             new_sheet.append(columns)
             new_sheet.append(data)
             table_size = new_sheet.dimensions
-            new_sheet["A4"] = "player name"
-            new_sheet["A5"] = player_name
             with open(f"{os.getcwd()}/configurations/{attack}.json") as file:
                 calculations = json.load(file)["ADVANCED STATS"]
                 for formula_string_index in range(len(calculations)):
                     temp_formula = get_formula(calculations[formula_string_index], table_size)
-                    new_sheet[f"{get_column_letter(formula_string_index + 2)}4"] = temp_formula[0]
-                    new_sheet[f"{get_column_letter(formula_string_index + 2)}5"] = temp_formula[1]
+                    new_sheet[f"{get_column_letter(formula_string_index + 1)}4"] = temp_formula[0]
+                    new_sheet[f"{get_column_letter(formula_string_index + 1)}5"] = temp_formula[1]
+            new_sheet.conditional_formatting.add("A2:AZ2", r)
         export_results.save(file_full_location)
         window_to_destroy.destroy()
 
