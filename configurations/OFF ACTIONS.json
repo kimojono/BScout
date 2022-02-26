@@ -1,4 +1,5 @@
 {
+  "MAIN CONFIG": false,
 "SAVE LOCATION" : "c:/basketballAnalysis",
 "CONFIGURATIONS LOCATION" : "c:/basketballAnalysis/configurations",
 "player counters names list" : ["RIM MAKE",

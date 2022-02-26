@@ -11,7 +11,8 @@ MATH_OPERATORS = ['+', '-', '*', '/', '(', ')', '^', '=']
 KEYCODES_LIST = [49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 81, 87, 69, 82, 84, 89, 85, 73, 79, 80, 65,
                  83, 68, 70, 71, 72, 74, 75, 76, 90, 88, 67, 86, 66, 78, 77]
 BAD_FILE_NAME_CHARS = ['\\', '/', '*', ':', '"', '?', '|', '<', '>']
-global root, counters_list, subtraction_flag, CONFIG, inner_counters_names_dict, inner_counters_dict, box_score, counters_per_column
+global root, counters_list, subtraction_flag, CONFIG, inner_counters_names_dict, inner_counters_dict, score_box, \
+    counters_per_column
 HEADER_FONT = ("Calibri Light", 14)
 TEXT_FONT = ("Calibri Light", 10)
 BACKGROUND_COLOR = 'lightblue1'
@@ -26,7 +27,7 @@ def get_formula(formula_string: str, table_index: str, player_row: int = 2):
         for substring_index in counter_indexes_list[::-1]:
             if formula[substring_index - 1] in MATH_OPERATORS and formula[substring_index + len(counter)] in \
                     MATH_OPERATORS:
-                formula = formula[:substring_index] + f'HLOOKUP("{counter}",{table_index},{player_row},FALSE)'\
+                formula = formula[:substring_index] + f'HLOOKUP("{counter}",{table_index},{player_row},FALSE)' \
                           + formula[substring_index + len(counter):]
     return [name, formula]
 
@@ -105,9 +106,9 @@ def init_root_screen(filename: str):
 
     root.resizable(False, False)
     root.eval('tk::PlaceWindow . center')
+    inner_counters_dict = {}
     if CONFIG["MAIN CONFIG"]:
         inner_counters_names_dict = {}
-        inner_counters_dict = {}
         for counter in CONFIG["player counters names list"]:
             with open(f"{os.getcwd()}/configurations/{counter}.json") as file:
                 counter_config = json.load(file)
@@ -137,9 +138,11 @@ def key_pressed_inside_attack_window(event, counter_name):
         if event.keycode == i.key:
             i.add_or_subtract_one(subtraction_flag)
 
+
 def withdraw_window_and_focus_root(window):
     window.withdraw()
     root.focus()
+
 
 def init_attack_counter_window(counter):
     global inner_counters_dict
@@ -149,8 +152,8 @@ def init_attack_counter_window(counter):
         counter_window = Toplevel(root)
         inner_counters_dict[counter.name] = []
         for c_index in range(len(inner_counters_names_dict[counter.name])):
-            inner_counters_dict[counter.name].append(KeysCounter(counter_window, KEYCODES_LIST[c_index], c_index+3, 0,
-                                                            inner_counters_names_dict[counter.name][c_index]))
+            inner_counters_dict[counter.name].append(KeysCounter(counter_window, KEYCODES_LIST[c_index], c_index + 3, 0,
+                                                                 inner_counters_names_dict[counter.name][c_index]))
         for i in range(int((len(inner_counters_dict[counter.name]) - 1) / counters_per_column) + 1):
             Label(counter_window, text="Key", font=TEXT_FONT, bg=BACKGROUND_COLOR, fg="black", bd=3) \
                 .grid(row=2, column=i * 3)
@@ -171,11 +174,9 @@ def init_attack_counter_window(counter):
         counter_window.focus()
 
 
-
-
 def save_and_close(file_name, player_name, window_to_destroy):
     flag = True
-    for counter in box_score:
+    for counter in score_box:
         if counter.entry.get().isdecimal():
             counter.count = counter.entry.get()
         else:
@@ -184,27 +185,40 @@ def save_and_close(file_name, player_name, window_to_destroy):
     if file_name != '' and not any([c in BAD_FILE_NAME_CHARS for c in file_name]) and flag:
         file_full_location = rf"{CONFIG['SAVE LOCATION']}\{file_name}.xlsx"
         export_results = openpyxl.Workbook()
-        data_sheet = export_results.active
-        data_sheet.title = "Data"
-        columns = ["player name"] + [i.name for i in box_score if i.name != 'empty'] + \
-                  [i.name for i in counters_list if i.name != 'empty']
-        data = [player_name] + [i.count for i in box_score if i.name != 'empty'] + \
-               [i.count for i in counters_list if i.name != 'empty']
-        data_sheet.append(columns)
-        data_sheet.append(data)
-        statistics_sheet = export_results.create_sheet("statistics")
-        statistics_sheet["A1"] = "player name"
-        statistics_sheet["A2"] = player_name
+        main_sheet = export_results.active
+        main_sheet.title = "Main"
+        columns = ["player name"] + [i.name for i in score_box] + [i.name for i in counters_list]
+        data = [player_name] + [i.count for i in score_box] + [i.count for i in counters_list]
+        main_sheet.append(columns)
+        main_sheet.append(data)
+        main_table_size = main_sheet.dimensions
+        main_sheet["A4"] = "player name"
+        main_sheet["A5"] = player_name
         for formula_string_index in range(len(CONFIG["ADVANCED STATS"])):
-            temp_formula = get_formula(CONFIG["ADVANCED STATS"][formula_string_index], "Data!" + data_sheet.dimensions)
-            statistics_sheet[f"{get_column_letter(formula_string_index + 2)}1"] = temp_formula[0]
-            statistics_sheet[f"{get_column_letter(formula_string_index + 2)}2"] = temp_formula[1]
+            temp_formula = get_formula(CONFIG["ADVANCED STATS"][formula_string_index], main_table_size)
+            main_sheet[f"{get_column_letter(formula_string_index + 2)}4"] = temp_formula[0]
+            main_sheet[f"{get_column_letter(formula_string_index + 2)}5"] = temp_formula[1]
+        for attack, counters in inner_counters_dict.items():
+            columns = [i.name for i in counters]
+            data = [i.count for i in counters]
+            new_sheet = export_results.create_sheet(attack)
+            new_sheet.append(columns)
+            new_sheet.append(data)
+            table_size = new_sheet.dimensions
+            new_sheet["A4"] = "player name"
+            new_sheet["A5"] = player_name
+            with open(f"{os.getcwd()}/configurations/{attack}.json") as file:
+                calculations = json.load(file)["ADVANCED STATS"]
+                for formula_string_index in range(len(calculations)):
+                    temp_formula = get_formula(calculations[formula_string_index], table_size)
+                    new_sheet[f"{get_column_letter(formula_string_index + 2)}4"] = temp_formula[0]
+                    new_sheet[f"{get_column_letter(formula_string_index + 2)}5"] = temp_formula[1]
         export_results.save(file_full_location)
         window_to_destroy.destroy()
 
 
 def export_to_excel():
-    global box_score
+    global score_box
     export_window = Toplevel(root)
     export_window.resizable(False, False)
     export_window.title = "name the file"
@@ -216,12 +230,12 @@ def export_to_excel():
     player_name_entry = Entry(export_window, width=20, borderwidth=3)
     player_name_entry.grid(row=1, column=2, columnspan=2)
     Label(export_window, text="", font=TEXT_FONT).grid(row=2, column=0)
-    box_score = []
+    score_box = []
     for i in range(len(CONFIG["general counters names list"])):
-        box_score.append(
+        score_box.append(
             EntryCounter(export_window, i % 16 + 3, 1 + int(i / 16) * 2, CONFIG["general counters names list"][i]))
-        box_score[i].entry.grid(row=box_score[i].row, column=box_score[i].column)
-        box_score[i].entry.insert(-1, "0")
+        score_box[i].entry.grid(row=score_box[i].row, column=score_box[i].column)
+        score_box[i].entry.insert(-1, "0")
         Label(export_window, text=f'{CONFIG["general counters names list"][i]}:', font=("Calibri Light", 12)) \
             .grid(row=i % 16 + 3, column=+int(i / 16) * 2)
     Button(export_window, text="done", font=TEXT_FONT,
