@@ -1,0 +1,20 @@
+{
+  "MAIN CONFIG": false,
+  "SAVE LOCATION" : "c:/basketballAnalysis",
+  "CONFIGURATIONS LOCATION" : "c:/basketballAnalysis/configurations",
+  "player counters names list" : [
+    "KKK",
+    "KK",
+    "LEFT",
+    "ASSIST",
+    "SCORE"
+  ],
+  "general counters names list" : [],
+  "ADVANCED STATS":[
+    "FG%=(FGM/FGA)*100",
+    "3P%=(3PM/3PA)*100",
+    "2P%=((FGM-3PM)/(FGA-3PA))*100",
+    "EFG=((FGM+0.5*3PM)/FGA)*100",
+    "TS%=PTS/(2*(FGA+0.44*FTA))*100"
+  ]
+}

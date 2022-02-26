@@ -11,9 +11,10 @@ MATH_OPERATORS = ['+', '-', '*', '/', '(', ')', '^', '=']
 KEYCODES_LIST = [49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 81, 87, 69, 82, 84, 89, 85, 73, 79, 80, 65,
                  83, 68, 70, 71, 72, 74, 75, 76, 90, 88, 67, 86, 66, 78, 77]
 BAD_FILE_NAME_CHARS = ['\\', '/', '*', ':', '"', '?', '|', '<', '>']
-global root, counters_list, add_or_subtract, CONFIG, inner_counters_names_dict, inner_counters_dict, box_score
+global root, counters_list, subtraction_flag, CONFIG, inner_counters_names_dict, inner_counters_dict, box_score, counters_per_column
 HEADER_FONT = ("Calibri Light", 14)
 TEXT_FONT = ("Calibri Light", 10)
+BACKGROUND_COLOR = 'lightblue1'
 
 
 def get_formula(formula_string: str, table_index: str, player_row: int = 2):
@@ -69,7 +70,8 @@ class KeysCounter(Counter):
 
 
 def init_root_screen(filename: str):
-    global counters_list, add_or_subtract, inner_counters_names_dict, inner_counters_dict
+    global counters_list, subtraction_flag, inner_counters_names_dict, inner_counters_dict, counters_per_column
+    root.configure(bg="lightblue1")
     counters_per_column = 22
     '''
     background_image = ImageTk.PhotoImage(file="background_image.jpg")
@@ -78,22 +80,22 @@ def init_root_screen(filename: str):
     background_label.grid(row=0,column=0)
     '''  # adds background image, currently not working
     counters_list = []
-    add_or_subtract = False
+    subtraction_flag = False
     for i in range(len(CONFIG["player counters names list"])):
         counters_list.append(
             KeysCounter(root, KEYCODES_LIST[i], int(i - int(i / counters_per_column) * counters_per_column) + 3,
                         int(i / counters_per_column) * 3,
                         CONFIG["player counters names list"][i]))
     for i in range(int((len(counters_list) - 1) / counters_per_column) + 1):
-        Label(root, text="Key", font=TEXT_FONT, bg='lightblue1', fg="black", bd=3) \
+        Label(root, text="Key", font=TEXT_FONT, bg=BACKGROUND_COLOR, fg="black", bd=3) \
             .grid(row=2, column=i * 3)
-        Label(root, text="Content", font=TEXT_FONT, bg='lightblue1', fg="black", bd=3) \
+        Label(root, text="Content", font=TEXT_FONT, bg=BACKGROUND_COLOR, fg="black", bd=3) \
             .grid(row=2, column=i * 3 + 1)
-        Label(root, text="Count", font=TEXT_FONT, bg='lightblue1', fg="black", bd=3) \
+        Label(root, text="Count", font=TEXT_FONT, bg=BACKGROUND_COLOR, fg="black", bd=3) \
             .grid(row=2, column=i * 3 + 2)
-    Label(root, text=filename, font=HEADER_FONT, bg='lightblue1', padx=30, bd=3) \
+    Label(root, text=filename, font=HEADER_FONT, bg=BACKGROUND_COLOR, padx=30, bd=3) \
         .grid(row=0, column=0, columnspan=(int(len(counters_list) / counters_per_column) + 1) * 3)
-    Label(root, text="Press '-' To Subtract", font=TEXT_FONT, bg='lightblue1', padx=30, bd=3) \
+    Label(root, text="Press '-' To Subtract", font=TEXT_FONT, bg=BACKGROUND_COLOR, padx=30, bd=3) \
         .grid(row=1, column=0, columnspan=(int(len(counters_list) / counters_per_column) + 1) * 3)
     export_button = Button(root, text="Export", font=TEXT_FONT, bg='snow', padx=30, bd=3,
                            command=export_to_excel)
@@ -116,28 +118,59 @@ def init_root_screen(filename: str):
         import_button.grid(row=counters_per_column + 5, column=0, sticky=W, columnspan=3)
 
 
-def key_pressed(event):
-    global add_or_subtract
+def key_pressed_root_window(event):
+    global subtraction_flag
     if event.char == '-':
-        add_or_subtract = not add_or_subtract
+        subtraction_flag = not subtraction_flag
     for i in range(len(counters_list)):
         if event.keycode == KEYCODES_LIST[i]:
-            counters_list[i].add_or_subtract_one(add_or_subtract)
-            if CONFIG["MAIN CONFIG"] and not add_or_subtract:
-                key_pressed_new_window(counters_list[i])
+            counters_list[i].add_or_subtract_one(subtraction_flag)
+            if CONFIG["MAIN CONFIG"] and not subtraction_flag:
+                init_attack_counter_window(counters_list[i])
 
 
-def key_pressed_new_window(counter):
+def key_pressed_inside_attack_window(event, counter_name):
+    global subtraction_flag
+    if event.char == '-':
+        subtraction_flag = not subtraction_flag
+    for i in inner_counters_dict[counter_name]:
+        if event.keycode == i.key:
+            i.add_or_subtract_one(subtraction_flag)
+
+def withdraw_window_and_focus_root(window):
+    window.withdraw()
+    root.focus()
+
+def init_attack_counter_window(counter):
     global inner_counters_dict
-    counter_window = Toplevel(root)
-    counter_window.title = counter.name
     if counter.name in inner_counters_dict.keys():
-        a = 0  # *********************************
+        inner_counters_dict[counter.name][0].window.deiconify()
     else:
-        inner_counters_dict[counter] = []
+        counter_window = Toplevel(root)
+        inner_counters_dict[counter.name] = []
         for c_index in range(len(inner_counters_names_dict[counter.name])):
-            inner_counters_dict[counter].append(KeysCounter(counter_window, KEYCODES_LIST[c_index], c_index, 0,
+            inner_counters_dict[counter.name].append(KeysCounter(counter_window, KEYCODES_LIST[c_index], c_index+3, 0,
                                                             inner_counters_names_dict[counter.name][c_index]))
+        for i in range(int((len(inner_counters_dict[counter.name]) - 1) / counters_per_column) + 1):
+            Label(counter_window, text="Key", font=TEXT_FONT, bg=BACKGROUND_COLOR, fg="black", bd=3) \
+                .grid(row=2, column=i * 3)
+            Label(counter_window, text="Content", font=TEXT_FONT, bg=BACKGROUND_COLOR, fg="black", bd=3) \
+                .grid(row=2, column=i * 3 + 1)
+            Label(counter_window, text="Count", font=TEXT_FONT, bg=BACKGROUND_COLOR, fg="black", bd=3) \
+                .grid(row=2, column=i * 3 + 2)
+        Label(counter_window, text=counter.name, font=HEADER_FONT, bg=BACKGROUND_COLOR, padx=30, bd=3) \
+            .grid(row=0, column=0, columnspan=(int(len(counters_list) / counters_per_column) + 1) * 3)
+        Label(counter_window, text="Press '-' To Subtract", font=TEXT_FONT, bg=BACKGROUND_COLOR, padx=30, bd=3) \
+            .grid(row=1, column=0, columnspan=(int(len(counters_list) / counters_per_column) + 1) * 3)
+        counter_window.title = counter.name
+        counter_window.bind('<Key>', lambda event: key_pressed_inside_attack_window(event, counter.name))
+        counter_window.bind('<Return>', lambda event: withdraw_window_and_focus_root(counter_window))
+        counter_window.configure(bg=BACKGROUND_COLOR)
+        counter_window.attributes('-disabled', True)
+        counter_window.geometry("+100+100")
+        counter_window.focus()
+
+
 
 
 def save_and_close(file_name, player_name, window_to_destroy):
@@ -237,11 +270,10 @@ def main():
     filename = tkinter.filedialog.askopenfilename(filetypes=[("Json File", "*.json")],
                                                   initialdir=os.getcwd() + "/configurations")
     root = Tk()
-    root.configure(bg="lightblue1")
     with open(filename) as file:
         CONFIG = json.load(file)
         init_root_screen(filename.split("/")[-1].split(".")[0])
-        root.bind('<Key>', key_pressed)
+        root.bind('<Key>', key_pressed_root_window)
         root.mainloop()
 
 

@@ -3,7 +3,9 @@
   "SAVE LOCATION" : "c:/basketballAnalysis",
   "CONFIGURATIONS LOCATION" : "c:/basketballAnalysis/configurations",
   "player counters names list" : [
-    "P&R WEAK"
+    "P&R WEAK",
+    "P&R STRONG",
+    "P&R KKK"
   ],
   "general counters names list" : [
     "PTS",
