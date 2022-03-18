@@ -177,11 +177,22 @@ def init_attack_counter_window(counter):
         counter_window.focus()
 
 
+def isfloat(string):
+    try:
+        float(string)
+        return True
+    except ValueError:
+        return False
+
+
 def save_and_close(file_name, player_name, window_to_destroy):
     flag = True
     for counter in score_box:
-        if counter.entry.get().isdecimal():
-            counter.count = int(counter.entry.get())
+        if isfloat(counter.entry.get()):
+            if "." in counter.entry.get():
+                counter.count = float(counter.entry.get())
+            else:
+                counter.count = int(counter.entry.get())
         else:
             flag = False
             break
