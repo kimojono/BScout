@@ -28,8 +28,8 @@ def get_formula(formula_string: str, table_index: str, player_row: int = 2):
     for counter in CONFIG["player counters names list"] + CONFIG["general counters names list"]:
         counter_indexes_list = [m.start() for m in re.finditer(counter, formula)]
         for substring_index in counter_indexes_list[::-1]:
-            if formula[substring_index - 1] in MATH_OPERATORS and formula[substring_index + len(counter)] in \
-                    MATH_OPERATORS:
+            if substring_index == 0 or substring_index + len(counter) < len(formula) or\
+                    (formula[substring_index - 1] in MATH_OPERATORS and formula[substring_index + len(counter)] in MATH_OPERATORS):
                 formula = formula[:substring_index] + f'HLOOKUP("{counter}",{table_index},{player_row},FALSE)' \
                           + formula[substring_index + len(counter):]
     return [name, formula]
@@ -197,8 +197,8 @@ def save_and_close(file_name, player_name, window_to_destroy):
             flag = False
             break
     if file_name != '' and not any([c in BAD_FILE_NAME_CHARS for c in file_name]) and flag:
-        r = Rule(type="expression", dxf=DifferentialStyle(fill=PatternFill(bgColor="FFC7CE")),stopIfTrue=True)
-        r.formula=['A$2>0']
+        r = Rule(type="expression", dxf=DifferentialStyle(fill=PatternFill(bgColor="FFC7CE")), stopIfTrue=True)
+        r.formula = ['A$2>0']
         file_full_location = rf"{CONFIG['SAVE LOCATION']}\{file_name}.xlsx"
         export_results = openpyxl.Workbook()
         main_sheet = export_results.active
@@ -259,16 +259,19 @@ def export_to_excel():
                        lambda event: save_and_close(file_name_entry.get(), player_name_entry.get(), export_window))
 
 
-def import_from_excel():
-    filename = tkinter.filedialog.askopenfilename(filetypes=[("Excel file", "*.xlsx")],
-                                                  initialdir=CONFIG["SAVE LOCATION"])
+def import_from_excel(override_statistics=False, filename=None, old_window=None):
+    if old_window:
+        old_window.destroy()
+    if not override_statistics:
+        filename = tkinter.filedialog.askopenfilename(filetypes=[("Excel file", "*.xlsx")],
+                                                      initialdir=CONFIG["SAVE LOCATION"])
     new_window = Toplevel(root)
     new_window.title = "calculation finished"
     new_window.resizable(False, False)
     new_window.geometry(f"+{int(root.winfo_screenwidth() / 2)}+{int(root.winfo_screenheight() / 2)}")
     if filename != '':
         book = openpyxl.load_workbook(filename)
-        if "statistics" not in book:
+        if "statistics" not in book or override_statistics:
             import_results = openpyxl.load_workbook(filename)
             data_sheet = import_results.active
             statistics_sheet = import_results.create_sheet("statistics")
@@ -285,12 +288,15 @@ def import_from_excel():
 
             import_results.save(filename)
             Label(new_window, text="Finished! everything worked", padx=30, pady=15).pack()
+            Button(new_window, text="close", command=new_window.destroy).pack()
         else:
-            Label(new_window, text="statistics already exists", padx=30, pady=15).pack()
+            Label(new_window, text="want to override statistics?", padx=30, pady=15).pack()
+            Button(new_window, padx=20, bd=3, text="yes",
+                   command=lambda: import_from_excel(True, filename, new_window)).pack(padx=20, side=LEFT)
+            Button(new_window, padx=20, bd=3, text="no", command=new_window.destroy).pack(padx=20, side=RIGHT)
     else:
         Label(new_window, text="didn't choose a file", padx=30, pady=15).pack()
-
-    Button(new_window, text="close", command=new_window.destroy).pack()
+        Button(new_window, text="close", command=new_window.destroy).pack()
 
 
 def main():
