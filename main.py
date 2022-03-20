@@ -25,11 +25,10 @@ def get_formula(formula_string: str, table_index: str, player_row: int = 2):
     formula = formula_string.split("=")
     name = formula[0]
     formula = "=" + formula[1]
-    for counter in CONFIG["player counters names list"] + CONFIG["general counters names list"]:
+    for counter in CONFIG["player counters names list"][::-1] + CONFIG["general counters names list"][::-1]:
         counter_indexes_list = [m.start() for m in re.finditer(counter, formula)]
         for substring_index in counter_indexes_list[::-1]:
-            if substring_index == 0 or substring_index + len(counter) < len(formula) or\
-                    (formula[substring_index - 1] in MATH_OPERATORS and formula[substring_index + len(counter)] in MATH_OPERATORS):
+            if substring_index == 1 or substring_index + len(counter) == len(formula) or (formula[substring_index - 1] in MATH_OPERATORS and formula[substring_index + len(counter)] in MATH_OPERATORS):
                 formula = formula[:substring_index] + f'HLOOKUP("{counter}",{table_index},{player_row},FALSE)' \
                           + formula[substring_index + len(counter):]
     return [name, formula]
@@ -260,8 +259,6 @@ def export_to_excel():
 
 
 def import_from_excel(override_statistics=False, filename=None, old_window=None):
-    if old_window:
-        old_window.destroy()
     if not override_statistics:
         filename = tkinter.filedialog.askopenfilename(filetypes=[("Excel file", "*.xlsx")],
                                                       initialdir=CONFIG["SAVE LOCATION"])
@@ -274,6 +271,9 @@ def import_from_excel(override_statistics=False, filename=None, old_window=None)
         if "statistics" not in book or override_statistics:
             import_results = openpyxl.load_workbook(filename)
             data_sheet = import_results.active
+            if old_window:
+                old_window.destroy()
+                import_results.remove(import_results["statistics"])
             statistics_sheet = import_results.create_sheet("statistics")
             for row_index in range(1, data_sheet.max_row + 1):
                 statistics_sheet[f"A{row_index}"] = f'=HLOOKUP("player name",{data_sheet.title}!' \
